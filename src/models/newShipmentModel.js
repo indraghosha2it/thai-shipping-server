@@ -359,6 +359,7 @@ const newShipmentSchema = new mongoose.Schema({
     shipmentStatus: {
         type: String,
         enum: [
+             'booking_requested',
             'pending',
             'picked_up_from_warehouse',
             'received_at_warehouse',

@@ -135,7 +135,7 @@ const templates = {
                         <p><strong>Next Steps:</strong> Please review the booking details and provide a price quote within 24 hours.</p>
                     </div>
                     <div class="footer">
-                        <p>© ${new Date().getFullYear()} Hanjin Shipping-Thailand. All rights reserved.</p>
+                        <p>© ${new Date().getFullYear()} Thai Shipping. All rights reserved.</p>
                         <p>This is an automated message, please do not reply directly.</p>
                     </div>
                 </div>
@@ -168,7 +168,7 @@ const templates = {
                     </div>
                     <div class="content">
                         <h2>Dear ${data.customerName},</h2>
-                        <p>Thank you for choosing Hanjin Shipping-Thailand. Your booking request has been received successfully. We'll talk to you and update your price quote very shortly.</p>
+                        <p>Thank you for choosing Thai Shipping. Your booking request has been received successfully. We'll talk to you and update your price quote very shortly.</p>
                         
                         <div class="info-box">
                             <h3>Booking Summary:</h3>
@@ -820,7 +820,7 @@ const templates = {
                         </div>
                         
                         <p style="font-size: 16px; color: #475569;">
-                            ${data.senderName} has sent a shipment to you through <strong>Hanjin Shipping-Thailand</strong>. 
+                            ${data.senderName} has sent a shipment to you through <strong>Thai Shipping</strong>. 
                             Your package has been confirmed and is being prepared for delivery.
                         </p>
 
@@ -906,11 +906,11 @@ const templates = {
 
                     <!-- Footer -->
                     <div class="footer">
-                        <div class="company">Hanjin Shipping-Thailand</div>
+                        <div class="company">Thai Shipping</div>
                         <p>Delivering Excellence Worldwide 🌍</p>
                         <p style="font-size: 12px; margin-top: 20px;">
                             This email was sent regarding a shipment to you.<br>
-                            &copy; ${new Date().getFullYear()} Hanjin Shipping-Thailand. All rights reserved.
+                            &copy; ${new Date().getFullYear()} Thai Shipping. All rights reserved.
                         </p>
                     </div>
                 </div>
@@ -1097,7 +1097,7 @@ const templates = {
                         </div>
                     </div>
                     <div class="footer">
-                        <p>© ${new Date().getFullYear()} Hanjin Shipping-Thailand. All rights reserved.</p>
+                        <p>© ${new Date().getFullYear()} Thai Shipping. All rights reserved.</p>
                         <p>Questions? Contact us at tracking@samuderathai.com</p>
                     </div>
                 </div>
@@ -1199,7 +1199,7 @@ const templates = {
                         </div>
                         
                         <div class="info-box" style="background: #d4edda; border-left-color: #28a745;">
-                            <h4>Thank you for choosing Hanjin Shipping-Thailand!</h4>
+                            <h4>Thank you for choosing Thai Shipping!</h4>
                             <p>We appreciate your business. If you have any questions about your delivery or need to file a claim, please contact us.</p>
                         </div>
                         
@@ -1393,9 +1393,9 @@ const templates = {
                             ${data.vesselName ? `<p><strong>Vessel Name:</strong> ${data.vesselName}</p>` : ''}
                             ${data.voyageNumber ? `<p><strong>Voyage Number:</strong> ${data.voyageNumber}</p>` : ''}
                         </div>
-                        <p>You will receive further tracking updates as your shipment progresses. Thank you for choosing Hanjin Shipping-Thailand.</p>
+                        <p>You will receive further tracking updates as your shipment progresses. Thank you for choosing Thai Shipping.</p>
                     </div>
-                    <div class="footer"><p>&copy; ${new Date().getFullYear()} Hanjin Shipping-Thailand. All rights reserved.</p></div>
+                    <div class="footer"><p>&copy; ${new Date().getFullYear()} Thai Shipping. All rights reserved.</p></div>
                 </div>
             </body>
             </html>
@@ -1683,7 +1683,7 @@ const templates = {
                             <p><strong>Tracking Number:</strong> ${data.trackingNumber}</p>
                             ${data.notes ? `<p><strong>Notes:</strong> ${data.notes}</p>` : ''}
                         </div>
-                        <p>Thank you for choosing Hanjin Shipping-Thailand. We hope to serve you again.</p>
+                        <p>Thank you for choosing Thai Shipping. We hope to serve you again.</p>
                         ${data.dashboardUrl ? `<div style="text-align: center; margin: 20px 0;"><a href="${data.dashboardUrl}" class="button">View Details</a></div>` : ''}
                     </div>
                 </div>
@@ -1729,7 +1729,7 @@ const sendEmail = async ({ to, subject, template, data, attachments }, retries =
         
         // Prepare email options with attachments support
         const mailOptions = {
-            from: `"${process.env.EMAIL_FROM_NAME || 'Hanjin Shipping-Thailand'}" <${process.env.EMAIL_FROM || 'tracking@samuderathai.com'}>`,
+            from: `"${process.env.EMAIL_FROM_NAME || 'Thai Shipping'}" <${process.env.EMAIL_FROM || 'tracking@samuderathai.com'}>`,
             to: Array.isArray(to) ? to.join(', ') : to,
             replyTo: process.env.EMAIL_REPLY_TO || process.env.EMAIL_FROM,
             subject: emailContent.subject || subject,

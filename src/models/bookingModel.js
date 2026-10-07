@@ -125,15 +125,26 @@ const packageItemSchema = new mongoose.Schema({
         required: true,
         min: [0, 'Volume cannot be negative']
     },
-    productCategory: {
-        type: String,
-        required: true,
-        enum: [
-            'Electronics', 'Furniture', 'Clothing', 'Machinery', 
-            'Automotive', 'Pharmaceuticals', 'Food', 'Documents', 
-            'Tires', 'Chemicals', 'Others'
-        ]
-    },
+    // productCategory: {
+    //     type: String,
+    //     required: true,
+    //     enum: [
+    //         'Electronics', 'Furniture', 'Clothing', 'Machinery', 
+    //         'Automotive', 'Pharmaceuticals', 'Food', 'Documents', 
+    //         'Tires', 'Chemicals', 'Others'
+    //     ]
+    // },
+
+  productCategory: {
+    type: String,
+    enum: [
+        'Electronics', 'Furniture', 'Clothing', 'Machinery', 
+        'Automotive', 'Pharmaceuticals', 'Food', 'Documents', 
+        'Tires', 'Chemicals', 'Others'
+    ],
+    default: 'Others',
+    set: (v) => (v === '' || v === null || v === undefined ? 'Others' : v),
+},
     hsCode: String,
     value: {
         amount: {

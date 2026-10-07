@@ -209,6 +209,9 @@ router.delete('/deletemanualInvoice/:id', protect, adminOnly, ManualInvoiceContr
 router.post("/create-shipments", protect, newShipmentController.createShipment);
 router.get("/getNewShipment", protect,adminOnly, newShipmentController.getAllNewShipments);
 router.get('/getAllShipment',protect,  adminOnly, shipmentController.getAllShipments); 
+
+
+
 router.get('/shipments/track/:trackingNumber',protect, shipmentController.trackByNumber); 
 
 // manual shipping

@@ -210,9 +210,9 @@ const generateInvoicePDF = async (invoice, shipment) => {
             doc.rect(0, footerY, doc.page.width, 65).fill('#1a1a2e');
             doc.fillColor('#ffffff');
             doc.fontSize(7).font('Helvetica');
-            doc.text('Thank you for choosing Hanjin Shipping-Thailand!', 50, footerY + 15, { align: 'center' });
+            doc.text('Thank you for choosing Thai Shipping!', 50, footerY + 15, { align: 'center' });
             doc.text('This is a computer generated invoice. No signature required.', 50, footerY + 30, { align: 'center' });
-            doc.text(`© ${new Date().getFullYear()} Hanjin Shipping-Thailand. All rights reserved.`, 50, footerY + 45, { align: 'center' });
+            doc.text(`© ${new Date().getFullYear()} Thai Shipping. All rights reserved.`, 50, footerY + 45, { align: 'center' });
             
             doc.end();
             

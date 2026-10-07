@@ -100,7 +100,7 @@ class EmailService {
       console.log("📧 DEVELOPMENT MODE - EMAIL LOG");
       console.log("=".repeat(70));
       console.log("To:", email);
-      console.log("Subject: Your OTP Code - Hanjin Shipping-Thailand");
+      console.log("Subject: Your OTP Code - Thai Shipping");
       console.log("OTP:", otp);
       console.log("Expires in: 10 minutes");
       console.log("=".repeat(70));
@@ -119,9 +119,9 @@ class EmailService {
       const text = this.createRegistrationText(otp, name);
       
       const mailOptions = {
-        from: `"Hanjin Shipping-Thailand" <${process.env.SMTP_USER}>`,
+        from: `"Thai Shipping" <${process.env.SMTP_USER}>`,
         to: email,
-        subject: `Your OTP Code: ${otp} - Hanjin Shipping-Thailand Registration`,
+        subject: `Your OTP Code: ${otp} - Thai Shipping Registration`,
         html: html,
         text: text,
         headers: {
@@ -195,12 +195,12 @@ class EmailService {
       <body>
         <div class="container">
           <div class="header">
-            <h1 style="margin: 0;">Hanjin Shipping-Thailand</h1>
+            <h1 style="margin: 0;">Thai Shipping</h1>
             <p style="margin: 10px 0 0 0; opacity: 0.9;">Registration Verification</p>
           </div>
           <div class="content">
             <p>Hello <strong>${name}</strong>,</p>
-            <p>Your verification code for Hanjin Shipping-Thailand registration is:</p>
+            <p>Your verification code for Thai Shipping registration is:</p>
             
             <div class="otp-box">
               ${otp}
@@ -217,7 +217,7 @@ class EmailService {
             <p>If you didn't request this registration, please ignore this email.</p>
           </div>
           <div class="footer">
-            <p>© ${new Date().getFullYear()} Hanjin Shipping-Thailand. All rights reserved.</p>
+            <p>© ${new Date().getFullYear()} Thai Shipping. All rights reserved.</p>
             <p style="font-size: 11px; color: #999;">This is an automated message. Please do not reply.</p>
           </div>
         </div>
@@ -228,7 +228,7 @@ class EmailService {
 
   createRegistrationText(otp, name) {
     return `
-Hanjin Shipping-Thailand - Registration OTP
+Thai Shipping - Registration OTP
 
 Hello ${name},
 
@@ -240,7 +240,7 @@ This OTP will expire in 10 minutes.
 
 If you didn't request this registration, please ignore this email.
 
-© ${new Date().getFullYear()} Hanjin Shipping-Thailand
+© ${new Date().getFullYear()} Thai Shipping
     `;
   }
 
@@ -255,7 +255,7 @@ If you didn't request this registration, please ignore this email.
     
     try {
       await this.transporter.sendMail({
-        from: `"Hanjin Shipping-Thailand" <${process.env.SMTP_USER}>`,
+        from: `"Thai Shipping" <${process.env.SMTP_USER}>`,
         to: email,
         subject: `Password Reset OTP: ${otp}`,
         text: `Password reset OTP: ${otp}. Expires in 10 minutes.`
@@ -276,9 +276,9 @@ If you didn't request this registration, please ignore this email.
     
     try {
       await this.transporter.sendMail({
-        from: `"Hanjin Shipping-Thailand" <${process.env.SMTP_USER}>`,
+        from: `"Thai Shipping" <${process.env.SMTP_USER}>`,
         to: email,
-        subject: `Welcome to Hanjin Shipping-Thailand, ${name}!`,
+        subject: `Welcome to Thai Shipping, ${name}!`,
         text: `Welcome ${name}! Your account is now active.`
       });
       return { success: true, mode: 'production' };
@@ -325,7 +325,7 @@ const warehouseTemplates = {
                 </a>
             </p>
             
-            <p>Thank you for choosing Hanjin Shipping-Thailand!</p>
+            <p>Thank you for choosing Thai Shipping!</p>
         `
     }),
 

@@ -722,6 +722,596 @@ exports.updatePriceQuote = async (req, res) => {
 // ========== 5. ACCEPT QUOTE (Customer) ==========
 // controllers/bookingController.js - সম্পূর্ণ আপডেটেড Shipment Creation অংশ
 
+// exports.acceptQuote = async (req, res) => {
+//     try {
+//         const { id } = req.params;
+//         const { notes } = req.body;
+
+//         console.log('🚀 ===== ACCEPT QUOTE STARTED =====');
+//         console.log('1. Booking ID:', id);
+        
+//         const booking = await Booking.findById(id)
+//             .populate('customer', 'email firstName lastName companyName phone');
+
+//         if (!booking) {
+//             return res.status(404).json({ 
+//                 success: false, 
+//                 message: 'Booking not found' 
+//             });
+//         }
+
+//         console.log('2. Booking found:', booking.bookingNumber);
+//         console.log('3. Customer email:', booking.customer?.email);
+
+//         if (!canUserAccessBooking(booking, req.user)) {
+//             return res.status(403).json({ 
+//                 success: false, 
+//                 message: 'You can only accept your own bookings' 
+//             });
+//         }
+
+//         const customerId = booking.customer?._id || booking.customerId || req.user._id;
+
+//         // Check pricing status with detailed logging
+//         console.log('4. Checking pricing status:', {
+//             pricingStatus: booking.pricingStatus,
+//             quotedPrice: !!booking.quotedPrice,
+//             customerResponse: booking.customerResponse
+//         });
+
+//         if (booking.pricingStatus !== 'quoted') {
+//             return res.status(400).json({ 
+//                 success: false, 
+//                 message: `No active price quote found. Current status: ${booking.pricingStatus}`,
+//                 currentStatus: booking.pricingStatus,
+//                 quotedPrice: !!booking.quotedPrice
+//             });
+//         }
+
+//         // Check if quote is still valid
+//         if (!booking.isQuoteValid()) {
+//             booking.pricingStatus = 'expired';
+//             await booking.save();
+//             return res.status(400).json({ 
+//                 success: false, 
+//                 message: 'Price quote has expired' 
+//             });
+//         }
+
+//         // Update booking
+//         booking.customerResponse = {
+//             status: 'accepted',
+//             respondedAt: new Date(),
+//             notes: notes,
+//             ipAddress: req.ip
+//         };
+        
+//         booking.pricingStatus = 'accepted';
+//         booking.status = 'booking_confirmed';
+//         booking.dates.confirmed = new Date();
+        
+//         // Generate tracking number
+//         let trackingNumber;
+//         try {
+//             trackingNumber = await generateTrackingNumber();
+//             console.log('4. Tracking number generated:', trackingNumber);
+//         } catch (tnError) {
+//             console.error('Tracking number error:', tnError);
+//             trackingNumber = `TRK${Date.now()}${Math.floor(Math.random() * 1000)}`;
+//         }
+        
+//         booking.trackingNumber = trackingNumber;
+        
+//         booking.addTimelineEntry(
+//             'booking_confirmed',
+//             `Customer accepted quote. Booking confirmed. Tracking: ${trackingNumber}`,
+//             req.user._id
+//         );
+
+//         await booking.save();
+//         console.log('5. Booking saved successfully');
+
+//         // ===== STEP 1: CREATE SHIPMENT (COMPLETE DATA) =====
+//         console.log('6. Creating shipment with complete booking data...');
+        
+//         let shipment = null;
+//         try {
+//             const shipmentNumber = await generateShipmentNumber();
+            
+//             console.log('📋 Booking Data Summary:', {
+//                 bookingNumber: booking.bookingNumber,
+//                 shipmentClassification: booking.shipmentClassification,
+//                 shipmentDetails: {
+//                     origin: booking.shipmentDetails?.origin,
+//                     destination: booking.shipmentDetails?.destination,
+//                     shippingMode: booking.shipmentDetails?.shippingMode,
+//                     totalPackages: booking.shipmentDetails?.totalPackages,
+//                     totalWeight: booking.shipmentDetails?.totalWeight,
+//                     totalVolume: booking.shipmentDetails?.totalVolume
+//                 },
+//                 packageCount: booking.shipmentDetails?.packageDetails?.length || 0
+//             });
+
+//             const packages = (booking.shipmentDetails?.packageDetails || []).map(item => ({
+//                 description: item.description || '',
+//                 packagingType: item.packagingType || 'carton',
+//                 quantity: item.quantity || 1,
+//                 weight: item.weight || 0,
+//                 volume: item.volume || 0,
+//                 dimensions: {
+//                     length: item.dimensions?.length || 0,
+//                     width: item.dimensions?.width || 0,
+//                     height: item.dimensions?.height || 0,
+//                     unit: item.dimensions?.unit || 'cm'
+//                 },
+//                 productCategory: item.productCategory || 'Others',
+//                 hsCode: item.hsCode || '',
+//                 value: {
+//                     amount: item.value?.amount || 0,
+//                     currency: item.value?.currency || 'USD'
+//                 },
+//                 hazardous: item.hazardous || false,
+//                 temperatureControlled: {
+//                     required: item.temperatureControlled?.required || false,
+//                     minTemp: item.temperatureControlled?.minTemp || null,
+//                     maxTemp: item.temperatureControlled?.maxTemp || null
+//                 },
+//                 condition: 'Good'
+//             }));
+
+//             console.log(`   ✅ Prepared ${packages.length} packages with complete data`);
+
+//             const shipmentData = {
+//                 shipmentNumber: shipmentNumber,
+//                 trackingNumber: trackingNumber,
+//                 bookingId: booking._id,
+//                 customerId: customerId,
+//                 createdBy: req.user._id,
+                
+//                 shipmentClassification: {
+//                     mainType: booking.shipmentClassification?.mainType || 'air_freight',
+//                     subType: booking.shipmentClassification?.subType || 'air_freight'
+//                 },
+                
+//                 shipmentDetails: {
+//                     origin: booking.shipmentDetails?.origin || '',
+//                     destination: booking.shipmentDetails?.destination || '',
+//                     shippingMode: booking.shipmentDetails?.shippingMode || 'DDU',
+//                     totalPackages: booking.shipmentDetails?.totalPackages || packages.length,
+//                     totalWeight: booking.shipmentDetails?.totalWeight || 0,
+//                     totalVolume: booking.shipmentDetails?.totalVolume || 0
+//                 },
+                
+//                 packages: packages,
+                
+//                 sender: {
+//                     name: booking.sender?.name || '',
+//                     companyName: booking.sender?.companyName || '',
+//                     email: booking.sender?.email || '',
+//                     phone: booking.sender?.phone || '',
+//                     address: {
+//                         addressLine1: booking.sender?.address?.addressLine1 || '',
+//                         addressLine2: booking.sender?.address?.addressLine2 || '',
+//                         city: booking.sender?.address?.city || '',
+//                         state: booking.sender?.address?.state || '',
+//                         country: booking.sender?.address?.country || '',
+//                         postalCode: booking.sender?.address?.postalCode || ''
+//                     }
+//                 },
+                
+//                 receiver: {
+//                     name: booking.receiver?.name || '',
+//                     companyName: booking.receiver?.companyName || '',
+//                     email: booking.receiver?.email || '',
+//                     phone: booking.receiver?.phone || '',
+//                     address: {
+//                         addressLine1: booking.receiver?.address?.addressLine1 || '',
+//                         addressLine2: booking.receiver?.address?.addressLine2 || '',
+//                         city: booking.receiver?.address?.city || '',
+//                         state: booking.receiver?.address?.state || '',
+//                         country: booking.receiver?.address?.country || '',
+//                         postalCode: booking.receiver?.address?.postalCode || ''
+//                     },
+//                     isResidential: booking.receiver?.isResidential || false
+//                 },
+                
+//                 courier: {
+//                     company: booking.courier?.company || 'Samudera Traffic Co., Ltd. Group',
+//                     serviceType: booking.courier?.serviceType || booking.serviceType || 'standard'
+//                 },
+                
+//                 dates: {
+//                     estimatedDeparture: booking.dates?.estimatedDeparture || null,
+//                     estimatedArrival: booking.dates?.estimatedArrival || null
+//                 },
+                
+//                 status: 'pending',
+                
+//                 transport: {
+//                     estimatedDeparture: booking.dates?.estimatedDeparture,
+//                     estimatedArrival: booking.dates?.estimatedArrival
+//                 },
+                
+//                 milestones: [{
+//                     status: 'pending',
+//                     location: booking.sender?.address?.country || 'Warehouse',
+//                     description: 'Shipment created from confirmed booking',
+//                     updatedBy: req.user._id,
+//                     timestamp: new Date()
+//                 }],
+                
+//                 bookingNumber: booking.bookingNumber,
+//                 serviceType: booking.serviceType
+//             };
+
+//             console.log('   Creating shipment with complete data...');
+            
+//             shipment = await Shipment.create(shipmentData);
+            
+//             console.log('   ✅ Shipment created successfully:', {
+//                 id: shipment._id,
+//                 number: shipment.shipmentNumber,
+//                 tracking: shipment.trackingNumber,
+//                 packages: shipment.packages?.length,
+//                 totalWeight: shipment.shipmentDetails?.totalWeight
+//             });
+            
+//             booking.shipmentId = shipment._id;
+//             await booking.save();
+            
+//             console.log('   ✅ Booking updated with shipment ID');
+
+//             try {
+//                 const warehouseStaff = await User.find({ 
+//                     role: 'warehouse', 
+//                     isActive: true 
+//                 });
+                
+//                 if (warehouseStaff.length > 0) {
+//                     await sendEmail({
+//                         to: warehouseStaff.map(w => w.email),
+//                         subject: '📦 New Shipment Ready for Warehouse Processing',
+//                         template: 'new-shipment-notification',
+//                         data: {
+//                             trackingNumber: trackingNumber,
+//                             customerName: booking.sender?.name || 'Customer',
+//                             origin: booking.shipmentDetails?.origin || 'N/A',
+//                             destination: booking.shipmentDetails?.destination || 'N/A',
+//                             packages: packages.length,
+//                             totalWeight: booking.shipmentDetails?.totalWeight || 0,
+//                             totalVolume: booking.shipmentDetails?.totalVolume || 0,
+//                             shipmentType: booking.shipmentClassification?.mainType || 'N/A',
+//                             bookingNumber: booking.bookingNumber,
+//                             expectedDate: new Date(booking.dates?.estimatedArrival || Date.now()).toLocaleDateString(),
+//                         }
+//                     }).catch(err => console.log('   ⚠️ Warehouse email error:', err.message));
+//                 }
+//             } catch (staffError) {
+//                 console.log('   ⚠️ Error notifying warehouse staff:', staffError.message);
+//             }
+
+//         } catch (shipmentError) {
+//             console.error('❌ Shipment creation error:', shipmentError);
+            
+//             if (shipmentError.name === 'ValidationError') {
+//                 console.error('   Validation errors:');
+//                 Object.keys(shipmentError.errors).forEach(key => {
+//                     console.error(`   - ${key}: ${shipmentError.errors[key].message}`);
+//                     console.error(`     Value:`, shipmentError.errors[key].value);
+//                 });
+//             }
+            
+//             if (shipmentError.code === 11000) {
+//                 console.error('   Duplicate key error:', shipmentError.keyValue);
+//             }
+//         }
+
+//         // ===== STEP 2: CREATE INVOICE AND GENERATE PDF =====
+// // ===== STEP 2: CREATE INVOICE AND GENERATE PDF =====
+// console.log('7. Creating invoice and generating PDF...');
+
+// let invoice = null;
+// let pdfBuffer = null;
+
+// try {
+//     const breakdown = booking.quotedPrice?.breakdown || {};
+    
+//     const charges = [];
+    
+//     const chargeMappings = [
+//         { field: 'baseRate', description: 'Base shipping rate', type: 'Freight Cost' },
+//         { field: 'weightCharge', description: 'Weight-based charge', type: 'Weight Charge' },
+//         { field: 'fuelSurcharge', description: 'Fuel surcharge', type: 'Fuel Surcharge' },
+//         { field: 'residentialSurcharge', description: 'Residential delivery surcharge', type: 'Residential Surcharge' },
+//         { field: 'insurance', description: 'Cargo insurance', type: 'Insurance' },
+//         { field: 'tax', description: 'Tax/VAT', type: 'Tax' },
+//         { field: 'otherCharges', description: 'Other miscellaneous charges', type: 'Other' }
+//     ];
+
+//     chargeMappings.forEach(mapping => {
+//         if (breakdown[mapping.field] && breakdown[mapping.field] > 0) {
+//             charges.push({
+//                 description: mapping.description,
+//                 type: mapping.type,
+//                 amount: breakdown[mapping.field],
+//                 currency: booking.quotedPrice?.currency || 'USD'
+//             });
+//         }
+//     });
+
+//     if (charges.length === 0 && booking.quotedPrice?.amount) {
+//         charges.push({
+//             description: 'Total shipping cost including all services',
+//             type: 'Freight Cost',
+//             amount: booking.quotedPrice.amount,
+//             currency: booking.quotedPrice.currency || 'USD'
+//         });
+//     }
+
+//     const breakdownSubtotal = charges.reduce((sum, charge) => sum + charge.amount, 0);
+//     const quotedAmount = Number(booking.quotedPrice?.amount || 0);
+//     const subtotal = quotedAmount > 0 ? quotedAmount : breakdownSubtotal;
+
+//     const invoiceData = {
+//         bookingId: booking._id,
+//         shipmentId: shipment?._id,
+//         customerId: customerId,
+        
+//         customerInfo: {
+//             companyName: booking.sender?.companyName || '',
+//             contactPerson: booking.sender?.name || '',
+//             email: booking.sender?.email,
+//             phone: booking.sender?.phone || '',
+//             address: booking.sender?.address?.addressLine1 || ''
+//         },
+        
+//         invoiceDate: new Date(),
+//         dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        
+//         charges: charges,
+//         subtotal: subtotal,
+//         totalAmount: subtotal,
+//         breakdownSubtotal: breakdownSubtotal,
+//         quotedPrice: quotedAmount,
+        
+//         currency: booking.quotedPrice?.currency || 'USD',
+//         paymentStatus: 'pending',
+//         status: 'draft',
+//         paymentTerms: 'Due within 30 days',
+        
+//         createdBy: req.user._id
+//     };
+
+//     // 🔥 গুরুত্বপূর্ণ: invoiceNumber সেট করছি না - model auto-generate করবে
+//     invoice = await Invoice.create(invoiceData);
+    
+//     booking.invoiceId = invoice._id;
+//     await booking.save();
+    
+//     console.log('   ✅ Invoice created:', {
+//         id: invoice._id,
+//         number: invoice.invoiceNumber,
+//         amount: invoice.totalAmount
+//     });
+
+//     // ===== GENERATE PDF =====
+//     console.log('   📄 Generating PDF invoice...');
+//     try {
+        
+        
+//         const companyInfo = {
+//             name: 'Samudera Traffic Co., Ltd. Group',
+//             address: 'Green Tower, 9th floor, 3656/27-28 Rama IV Road',
+//             city: 'Klongton-Klong Toey Bangkok 10110, Thailand',
+//             phone: '+66977830395',
+//             email: 'info@cargologistics.com',
+//             website: 'www.cargologistics.com'
+//         };
+        
+//         pdfBuffer = await generateInvoicePDFBuffer(invoice, companyInfo, trackingNumber);
+//         console.log('   ✅ PDF generated successfully, size:', pdfBuffer.length, 'bytes');
+        
+//         invoice.pdfGeneratedAt = new Date();
+//         invoice.pdfSize = pdfBuffer.length;
+//         await invoice.save();
+        
+//     } catch (pdfError) {
+//         console.error('   ❌ PDF generation failed:', pdfError.message);
+//     }
+
+// } catch (invoiceError) {
+//     console.error('❌ Invoice creation error:', invoiceError.message);
+// }
+
+
+
+//         // ===== STEP 3: Send Emails with PDF Attachment =====
+//         // ===== STEP 3: Send Emails with PDF Attachment =====
+// console.log('8. Sending confirmation emails with PDF...');
+// console.log('   📧 PDF Buffer status:', pdfBuffer ? `${pdfBuffer.length} bytes` : 'NOT GENERATED');
+
+// let emailAttachments = [];
+// if (!pdfBuffer && invoice) {
+//     try {
+//         console.log('   🔁 Retrying PDF generation before sending emails...');
+//         const fallbackCompanyInfo = {
+//             name: 'Samudera Traffic Co., Ltd. Group',
+//             address: 'Green Tower, 9th floor, 3656/27-28Rama IV Road',
+//             city: 'Klongton-Klong Toey Bangkok 10110, Thailand',
+//             phone: '+66977830395',
+//             email: 'info@cargologistics.com',
+//             website: 'www.cargologistics.com'
+//         };
+//         pdfBuffer = await generateInvoicePDFBuffer(invoice, fallbackCompanyInfo, trackingNumber);
+//         console.log('   ✅ PDF regenerated successfully, size:', pdfBuffer.length, 'bytes');
+//     } catch (regenError) {
+//         console.error('   ❌ PDF regeneration failed:', regenError.message);
+//     }
+// }
+
+// if (pdfBuffer && invoice) {
+//     const invoiceName = invoice.invoiceNumber ? `invoice-${invoice.invoiceNumber}.pdf` : `invoice-${invoice._id || 'attachment'}.pdf`;
+//     emailAttachments = [{
+//         filename: invoiceName,
+//         content: Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer),
+//         contentType: 'application/pdf'
+//     }];
+//     console.log('   📎 Email PDF attachment prepared:', invoiceName);
+// } else {
+//     console.log('   ⚠️ No email attachment available - pdfBuffer:', !!pdfBuffer, 'invoice:', !!invoice, 'invoiceNumber:', invoice?.invoiceNumber);
+// }
+
+// // Customer Email with PDF Attachment
+// const { allRecipients: customerRecipients } = getBookingPartyRecipients(booking, req.user?.email);
+// if (customerRecipients.length > 0) {
+//     const emailData = {
+//         subject: '🎉 Booking Confirmed! - Samudera Traffic Co., Ltd.',
+//         template: 'booking-confirmed-customer',
+//         data: {
+//             customerName: booking.sender?.name || 'Customer',
+//             bookingNumber: booking.bookingNumber,
+//             trackingNumber: trackingNumber,
+//             quotedAmount: booking.quotedPrice?.amount || 0,
+//             currency: booking.quotedPrice?.currency || 'USD',
+//             invoiceNumber: invoice?.invoiceNumber || 'N/A',
+//             origin: booking.shipmentDetails?.origin || 'N/A',
+//             destination: booking.shipmentDetails?.destination || 'N/A',
+//             estimatedDelivery: booking.dates?.estimatedArrival ? 
+//                 new Date(booking.dates.estimatedArrival).toLocaleDateString() : 
+//                 new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString()
+//         }
+//     };
+    
+//     emailData.attachments = emailAttachments;
+    
+//     try {
+//         await sendTemplateEmailPerRecipient({
+//             recipients: customerRecipients,
+//             subject: emailData.subject,
+//             template: emailData.template,
+//             data: emailData.data,
+//             attachments: emailData.attachments || []
+//         });
+//         console.log('✅ Customer email sent to:', customerRecipients);
+//     } catch (emailError) {
+//         console.error('❌ Customer email error:', emailError.message);
+//     }
+// }
+
+//         // Receiver Email
+//         if (booking.receiver?.email) {
+//             try {
+//                 await sendEmail({
+//                     to: booking.receiver.email,
+//                     subject: '📦 Your Shipment is Confirmed - Samudera Traffic Co., Ltd.',
+//                     template: 'receiver-shipment-confirmed',
+//                     data: {
+//                         receiverName: booking.receiver.name || 'Valued Customer',
+//                         receiverCompany: booking.receiver.companyName || '',
+//                         senderName: booking.sender?.name || 'Our Customer',
+//                         senderCompany: booking.sender?.companyName || '',
+//                         senderCountry: booking.sender?.address?.country || 'Unknown',
+//                         bookingNumber: booking.bookingNumber,
+//                         trackingNumber: trackingNumber,
+//                         origin: booking.shipmentDetails?.origin || 'Origin',
+//                         destination: booking.shipmentDetails?.destination || 'Destination',
+//                         totalPackages: booking.shipmentDetails?.totalPackages || 0,
+//                         totalWeight: booking.shipmentDetails?.totalWeight || 0,
+//                         totalVolume: booking.shipmentDetails?.totalVolume || 0,
+//                         estimatedDelivery: booking.dates?.estimatedArrival ? 
+//                             new Date(booking.dates.estimatedArrival).toLocaleDateString('en-US', {
+//                                 year: 'numeric',
+//                                 month: 'long',
+//                                 day: 'numeric'
+//                             }) : 
+//                             new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
+//                                 year: 'numeric',
+//                                 month: 'long',
+//                                 day: 'numeric'
+//                             })
+//                     },
+//                     attachments: emailAttachments
+//                 });
+//                 console.log('✅ Receiver email sent successfully to:', booking.receiver.email);
+//             } catch (emailError) {
+//                 console.error('❌ Failed to send receiver email:', emailError.message);
+//             }
+//         }
+
+//         // Admin Emails with PDF Attachment
+//         const allRecipients = await getAdminNotificationRecipients();
+
+//         if (allRecipients.length > 0) {
+//             const adminEmailData = {
+//                 subject: '✅ Booking Confirmed - Action Required',
+//                 template: 'booking-confirmed-admin',
+//                 data: {
+//                     bookingNumber: booking.bookingNumber,
+//                     customerName: booking.sender?.name || 'Customer',
+//                     trackingNumber: trackingNumber,
+//                     origin: booking.shipmentDetails?.origin || 'N/A',
+//                     destination: booking.shipmentDetails?.destination || 'N/A',
+//                     invoiceNumber: invoice?.invoiceNumber || 'N/A',
+//                     totalAmount: invoice?.totalAmount || 0,
+//                     currency: invoice?.currency || 'USD'
+//                 }
+//             };
+            
+//             adminEmailData.attachments = emailAttachments;
+            
+//             await sendTemplateEmailPerRecipient({
+//                 recipients: allRecipients,
+//                 subject: adminEmailData.subject,
+//                 template: adminEmailData.template,
+//                 data: adminEmailData.data,
+//                 attachments: adminEmailData.attachments || []
+//             });
+//             console.log('✅ Admin email sent to:', allRecipients);
+//         }
+
+//         console.log('9. ✅ Accept quote completed successfully');
+        
+//         res.status(200).json({
+//             success: true,
+//             message: 'Booking confirmed successfully. Shipment and invoice created. PDF invoice sent via email.',
+//             data: {
+//                 booking: {
+//                     _id: booking._id,
+//                     bookingNumber: booking.bookingNumber,
+//                     status: booking.status,
+//                     trackingNumber: booking.trackingNumber,
+//                     shipmentId: booking.shipmentId,
+//                     invoiceId: booking.invoiceId
+//                 },
+//                 shipment: shipment ? {
+//                     _id: shipment._id,
+//                     shipmentNumber: shipment.shipmentNumber,
+//                     trackingNumber: shipment.trackingNumber,
+//                     status: shipment.status
+//                 } : null,
+//                 invoice: invoice ? {
+//                     _id: invoice._id,
+//                     invoiceNumber: invoice.invoiceNumber,
+//                     totalAmount: invoice.totalAmount,
+//                     currency: invoice.currency,
+//                     pdfGenerated: !!pdfBuffer
+//                 } : null
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error('❌ FATAL ERROR:', error);
+//         console.error('Error stack:', error.stack);
+        
+//         res.status(500).json({ 
+//             success: false, 
+//             error: error.message 
+//         });
+//     }
+// };
+
+
+// ========== 5. ACCEPT QUOTE (Customer) ==========
 exports.acceptQuote = async (req, res) => {
     try {
         const { id } = req.params;
@@ -961,34 +1551,30 @@ exports.acceptQuote = async (req, res) => {
             
             console.log('   ✅ Booking updated with shipment ID');
 
-            try {
-                const warehouseStaff = await User.find({ 
-                    role: 'warehouse', 
-                    isActive: true 
-                });
-                
-                if (warehouseStaff.length > 0) {
-                    await sendEmail({
-                        to: warehouseStaff.map(w => w.email),
-                        subject: '📦 New Shipment Ready for Warehouse Processing',
-                        template: 'new-shipment-notification',
-                        data: {
-                            trackingNumber: trackingNumber,
-                            customerName: booking.sender?.name || 'Customer',
-                            origin: booking.shipmentDetails?.origin || 'N/A',
-                            destination: booking.shipmentDetails?.destination || 'N/A',
-                            packages: packages.length,
-                            totalWeight: booking.shipmentDetails?.totalWeight || 0,
-                            totalVolume: booking.shipmentDetails?.totalVolume || 0,
-                            shipmentType: booking.shipmentClassification?.mainType || 'N/A',
-                            bookingNumber: booking.bookingNumber,
-                            expectedDate: new Date(booking.dates?.estimatedArrival || Date.now()).toLocaleDateString(),
-                        }
-                    }).catch(err => console.log('   ⚠️ Warehouse email error:', err.message));
-                }
-            } catch (staffError) {
-                console.log('   ⚠️ Error notifying warehouse staff:', staffError.message);
-            }
+            // Notify warehouse staff (fire-and-forget, no await)
+            User.find({ role: 'warehouse', isActive: true })
+                .then(warehouseStaff => {
+                    if (warehouseStaff.length > 0) {
+                        return sendEmail({
+                            to: warehouseStaff.map(w => w.email),
+                            subject: '📦 New Shipment Ready for Warehouse Processing',
+                            template: 'new-shipment-notification',
+                            data: {
+                                trackingNumber: trackingNumber,
+                                customerName: booking.sender?.name || 'Customer',
+                                origin: booking.shipmentDetails?.origin || 'N/A',
+                                destination: booking.shipmentDetails?.destination || 'N/A',
+                                packages: packages.length,
+                                totalWeight: booking.shipmentDetails?.totalWeight || 0,
+                                totalVolume: booking.shipmentDetails?.totalVolume || 0,
+                                shipmentType: booking.shipmentClassification?.mainType || 'N/A',
+                                bookingNumber: booking.bookingNumber,
+                                expectedDate: new Date(booking.dates?.estimatedArrival || Date.now()).toLocaleDateString(),
+                            }
+                        });
+                    }
+                })
+                .catch(err => console.log('   ⚠️ Warehouse email error:', err.message));
 
         } catch (shipmentError) {
             console.error('❌ Shipment creation error:', shipmentError);
@@ -1007,271 +1593,101 @@ exports.acceptQuote = async (req, res) => {
         }
 
         // ===== STEP 2: CREATE INVOICE AND GENERATE PDF =====
-// ===== STEP 2: CREATE INVOICE AND GENERATE PDF =====
-console.log('7. Creating invoice and generating PDF...');
+        console.log('7. Creating invoice...');
 
-let invoice = null;
-let pdfBuffer = null;
+        let invoice = null;
+        let pdfBuffer = null;
 
-try {
-    const breakdown = booking.quotedPrice?.breakdown || {};
-    
-    const charges = [];
-    
-    const chargeMappings = [
-        { field: 'baseRate', description: 'Base shipping rate', type: 'Freight Cost' },
-        { field: 'weightCharge', description: 'Weight-based charge', type: 'Weight Charge' },
-        { field: 'fuelSurcharge', description: 'Fuel surcharge', type: 'Fuel Surcharge' },
-        { field: 'residentialSurcharge', description: 'Residential delivery surcharge', type: 'Residential Surcharge' },
-        { field: 'insurance', description: 'Cargo insurance', type: 'Insurance' },
-        { field: 'tax', description: 'Tax/VAT', type: 'Tax' },
-        { field: 'otherCharges', description: 'Other miscellaneous charges', type: 'Other' }
-    ];
+        try {
+            const breakdown = booking.quotedPrice?.breakdown || {};
+            
+            const charges = [];
+            
+            const chargeMappings = [
+                { field: 'baseRate', description: 'Base shipping rate', type: 'Freight Cost' },
+                { field: 'weightCharge', description: 'Weight-based charge', type: 'Weight Charge' },
+                { field: 'fuelSurcharge', description: 'Fuel surcharge', type: 'Fuel Surcharge' },
+                { field: 'residentialSurcharge', description: 'Residential delivery surcharge', type: 'Residential Surcharge' },
+                { field: 'insurance', description: 'Cargo insurance', type: 'Insurance' },
+                { field: 'tax', description: 'Tax/VAT', type: 'Tax' },
+                { field: 'otherCharges', description: 'Other miscellaneous charges', type: 'Other' }
+            ];
 
-    chargeMappings.forEach(mapping => {
-        if (breakdown[mapping.field] && breakdown[mapping.field] > 0) {
-            charges.push({
-                description: mapping.description,
-                type: mapping.type,
-                amount: breakdown[mapping.field],
-                currency: booking.quotedPrice?.currency || 'USD'
-            });
-        }
-    });
-
-    if (charges.length === 0 && booking.quotedPrice?.amount) {
-        charges.push({
-            description: 'Total shipping cost including all services',
-            type: 'Freight Cost',
-            amount: booking.quotedPrice.amount,
-            currency: booking.quotedPrice.currency || 'USD'
-        });
-    }
-
-    const breakdownSubtotal = charges.reduce((sum, charge) => sum + charge.amount, 0);
-    const quotedAmount = Number(booking.quotedPrice?.amount || 0);
-    const subtotal = quotedAmount > 0 ? quotedAmount : breakdownSubtotal;
-
-    const invoiceData = {
-        bookingId: booking._id,
-        shipmentId: shipment?._id,
-        customerId: customerId,
-        
-        customerInfo: {
-            companyName: booking.sender?.companyName || '',
-            contactPerson: booking.sender?.name || '',
-            email: booking.sender?.email,
-            phone: booking.sender?.phone || '',
-            address: booking.sender?.address?.addressLine1 || ''
-        },
-        
-        invoiceDate: new Date(),
-        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        
-        charges: charges,
-        subtotal: subtotal,
-        totalAmount: subtotal,
-        breakdownSubtotal: breakdownSubtotal,
-        quotedPrice: quotedAmount,
-        
-        currency: booking.quotedPrice?.currency || 'USD',
-        paymentStatus: 'pending',
-        status: 'draft',
-        paymentTerms: 'Due within 30 days',
-        
-        createdBy: req.user._id
-    };
-
-    // 🔥 গুরুত্বপূর্ণ: invoiceNumber সেট করছি না - model auto-generate করবে
-    invoice = await Invoice.create(invoiceData);
-    
-    booking.invoiceId = invoice._id;
-    await booking.save();
-    
-    console.log('   ✅ Invoice created:', {
-        id: invoice._id,
-        number: invoice.invoiceNumber,
-        amount: invoice.totalAmount
-    });
-
-    // ===== GENERATE PDF =====
-    console.log('   📄 Generating PDF invoice...');
-    try {
-        
-        
-        const companyInfo = {
-            name: 'Samudera Traffic Co., Ltd. Group',
-            address: 'Green Tower, 9th floor, 3656/27-28 Rama IV Road',
-            city: 'Klongton-Klong Toey Bangkok 10110, Thailand',
-            phone: '+66977830395',
-            email: 'info@cargologistics.com',
-            website: 'www.cargologistics.com'
-        };
-        
-        pdfBuffer = await generateInvoicePDFBuffer(invoice, companyInfo, trackingNumber);
-        console.log('   ✅ PDF generated successfully, size:', pdfBuffer.length, 'bytes');
-        
-        invoice.pdfGeneratedAt = new Date();
-        invoice.pdfSize = pdfBuffer.length;
-        await invoice.save();
-        
-    } catch (pdfError) {
-        console.error('   ❌ PDF generation failed:', pdfError.message);
-    }
-
-} catch (invoiceError) {
-    console.error('❌ Invoice creation error:', invoiceError.message);
-}
-
-        // ===== STEP 3: Send Emails with PDF Attachment =====
-        // ===== STEP 3: Send Emails with PDF Attachment =====
-console.log('8. Sending confirmation emails with PDF...');
-console.log('   📧 PDF Buffer status:', pdfBuffer ? `${pdfBuffer.length} bytes` : 'NOT GENERATED');
-
-let emailAttachments = [];
-if (!pdfBuffer && invoice) {
-    try {
-        console.log('   🔁 Retrying PDF generation before sending emails...');
-        const fallbackCompanyInfo = {
-            name: 'Samudera Traffic Co., Ltd. Group',
-            address: 'Green Tower, 9th floor, 3656/27-28Rama IV Road',
-            city: 'Klongton-Klong Toey Bangkok 10110, Thailand',
-            phone: '+66977830395',
-            email: 'info@cargologistics.com',
-            website: 'www.cargologistics.com'
-        };
-        pdfBuffer = await generateInvoicePDFBuffer(invoice, fallbackCompanyInfo, trackingNumber);
-        console.log('   ✅ PDF regenerated successfully, size:', pdfBuffer.length, 'bytes');
-    } catch (regenError) {
-        console.error('   ❌ PDF regeneration failed:', regenError.message);
-    }
-}
-
-if (pdfBuffer && invoice) {
-    const invoiceName = invoice.invoiceNumber ? `invoice-${invoice.invoiceNumber}.pdf` : `invoice-${invoice._id || 'attachment'}.pdf`;
-    emailAttachments = [{
-        filename: invoiceName,
-        content: Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer),
-        contentType: 'application/pdf'
-    }];
-    console.log('   📎 Email PDF attachment prepared:', invoiceName);
-} else {
-    console.log('   ⚠️ No email attachment available - pdfBuffer:', !!pdfBuffer, 'invoice:', !!invoice, 'invoiceNumber:', invoice?.invoiceNumber);
-}
-
-// Customer Email with PDF Attachment
-const { allRecipients: customerRecipients } = getBookingPartyRecipients(booking, req.user?.email);
-if (customerRecipients.length > 0) {
-    const emailData = {
-        subject: '🎉 Booking Confirmed! - Samudera Traffic Co., Ltd.',
-        template: 'booking-confirmed-customer',
-        data: {
-            customerName: booking.sender?.name || 'Customer',
-            bookingNumber: booking.bookingNumber,
-            trackingNumber: trackingNumber,
-            quotedAmount: booking.quotedPrice?.amount || 0,
-            currency: booking.quotedPrice?.currency || 'USD',
-            invoiceNumber: invoice?.invoiceNumber || 'N/A',
-            origin: booking.shipmentDetails?.origin || 'N/A',
-            destination: booking.shipmentDetails?.destination || 'N/A',
-            estimatedDelivery: booking.dates?.estimatedArrival ? 
-                new Date(booking.dates.estimatedArrival).toLocaleDateString() : 
-                new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString()
-        }
-    };
-    
-    emailData.attachments = emailAttachments;
-    
-    try {
-        await sendTemplateEmailPerRecipient({
-            recipients: customerRecipients,
-            subject: emailData.subject,
-            template: emailData.template,
-            data: emailData.data,
-            attachments: emailData.attachments || []
-        });
-        console.log('✅ Customer email sent to:', customerRecipients);
-    } catch (emailError) {
-        console.error('❌ Customer email error:', emailError.message);
-    }
-}
-
-        // Receiver Email
-        if (booking.receiver?.email) {
-            try {
-                await sendEmail({
-                    to: booking.receiver.email,
-                    subject: '📦 Your Shipment is Confirmed - Samudera Traffic Co., Ltd.',
-                    template: 'receiver-shipment-confirmed',
-                    data: {
-                        receiverName: booking.receiver.name || 'Valued Customer',
-                        receiverCompany: booking.receiver.companyName || '',
-                        senderName: booking.sender?.name || 'Our Customer',
-                        senderCompany: booking.sender?.companyName || '',
-                        senderCountry: booking.sender?.address?.country || 'Unknown',
-                        bookingNumber: booking.bookingNumber,
-                        trackingNumber: trackingNumber,
-                        origin: booking.shipmentDetails?.origin || 'Origin',
-                        destination: booking.shipmentDetails?.destination || 'Destination',
-                        totalPackages: booking.shipmentDetails?.totalPackages || 0,
-                        totalWeight: booking.shipmentDetails?.totalWeight || 0,
-                        totalVolume: booking.shipmentDetails?.totalVolume || 0,
-                        estimatedDelivery: booking.dates?.estimatedArrival ? 
-                            new Date(booking.dates.estimatedArrival).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                            }) : 
-                            new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric'
-                            })
-                    },
-                    attachments: emailAttachments
-                });
-                console.log('✅ Receiver email sent successfully to:', booking.receiver.email);
-            } catch (emailError) {
-                console.error('❌ Failed to send receiver email:', emailError.message);
-            }
-        }
-
-        // Admin Emails with PDF Attachment
-        const allRecipients = await getAdminNotificationRecipients();
-
-        if (allRecipients.length > 0) {
-            const adminEmailData = {
-                subject: '✅ Booking Confirmed - Action Required',
-                template: 'booking-confirmed-admin',
-                data: {
-                    bookingNumber: booking.bookingNumber,
-                    customerName: booking.sender?.name || 'Customer',
-                    trackingNumber: trackingNumber,
-                    origin: booking.shipmentDetails?.origin || 'N/A',
-                    destination: booking.shipmentDetails?.destination || 'N/A',
-                    invoiceNumber: invoice?.invoiceNumber || 'N/A',
-                    totalAmount: invoice?.totalAmount || 0,
-                    currency: invoice?.currency || 'USD'
+            chargeMappings.forEach(mapping => {
+                if (breakdown[mapping.field] && breakdown[mapping.field] > 0) {
+                    charges.push({
+                        description: mapping.description,
+                        type: mapping.type,
+                        amount: breakdown[mapping.field],
+                        currency: booking.quotedPrice?.currency || 'USD'
+                    });
                 }
-            };
-            
-            adminEmailData.attachments = emailAttachments;
-            
-            await sendTemplateEmailPerRecipient({
-                recipients: allRecipients,
-                subject: adminEmailData.subject,
-                template: adminEmailData.template,
-                data: adminEmailData.data,
-                attachments: adminEmailData.attachments || []
             });
-            console.log('✅ Admin email sent to:', allRecipients);
+
+            if (charges.length === 0 && booking.quotedPrice?.amount) {
+                charges.push({
+                    description: 'Total shipping cost including all services',
+                    type: 'Freight Cost',
+                    amount: booking.quotedPrice.amount,
+                    currency: booking.quotedPrice.currency || 'USD'
+                });
+            }
+
+            const breakdownSubtotal = charges.reduce((sum, charge) => sum + charge.amount, 0);
+            const quotedAmount = Number(booking.quotedPrice?.amount || 0);
+            const subtotal = quotedAmount > 0 ? quotedAmount : breakdownSubtotal;
+
+            const invoiceData = {
+                bookingId: booking._id,
+                shipmentId: shipment?._id,
+                customerId: customerId,
+                
+                customerInfo: {
+                    companyName: booking.sender?.companyName || '',
+                    contactPerson: booking.sender?.name || '',
+                    email: booking.sender?.email,
+                    phone: booking.sender?.phone || '',
+                    address: booking.sender?.address?.addressLine1 || ''
+                },
+                
+                invoiceDate: new Date(),
+                dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+                
+                charges: charges,
+                subtotal: subtotal,
+                totalAmount: subtotal,
+                breakdownSubtotal: breakdownSubtotal,
+                quotedPrice: quotedAmount,
+                
+                currency: booking.quotedPrice?.currency || 'USD',
+                paymentStatus: 'pending',
+                status: 'draft',
+                paymentTerms: 'Due within 30 days',
+                
+                createdBy: req.user._id
+            };
+
+            invoice = await Invoice.create(invoiceData);
+            
+            booking.invoiceId = invoice._id;
+            await booking.save();
+            
+            console.log('   ✅ Invoice created:', {
+                id: invoice._id,
+                number: invoice.invoiceNumber,
+                amount: invoice.totalAmount
+            });
+
+        } catch (invoiceError) {
+            console.error('❌ Invoice creation error:', invoiceError.message);
         }
 
-        console.log('9. ✅ Accept quote completed successfully');
-        
-        res.status(200).json({
+        // ===== RESPOND TO CLIENT IMMEDIATELY =====
+        console.log('✅ Booking confirmed, responding to client now...');
+
+        const responseData = {
             success: true,
-            message: 'Booking confirmed successfully. Shipment and invoice created. PDF invoice sent via email.',
+            message: 'Booking confirmed successfully. Shipment and invoice created.',
             data: {
                 booking: {
                     _id: booking._id,
@@ -1291,19 +1707,160 @@ if (customerRecipients.length > 0) {
                     _id: invoice._id,
                     invoiceNumber: invoice.invoiceNumber,
                     totalAmount: invoice.totalAmount,
-                    currency: invoice.currency,
-                    pdfGenerated: !!pdfBuffer
+                    currency: invoice.currency
                 } : null
             }
-        });
+        };
 
+        res.status(200).json(responseData);
+
+        // ===== NOW DO THE SLOW WORK IN BACKGROUND =====
+        (async () => {
+            try {
+                console.log('📧 Background: generating PDF + sending emails...');
+                
+                // ----- PDF generation -----
+                if (!pdfBuffer && invoice) {
+                    try {
+                        console.log('   📄 Generating PDF invoice (background)...');
+                        const companyInfo = {
+                            name: 'Thai Shipping',
+                            address: 'Bangkok Thailand',
+                            city: 'Bangkok ',
+                            phone: '+66977830395',
+                            email: 'info@cargologistics.com',
+                            website: 'www.cargologistics.com'
+                        };
+                        pdfBuffer = await generateInvoicePDFBuffer(invoice, companyInfo, trackingNumber);
+                        console.log('   ✅ Background PDF generated, size:', pdfBuffer.length, 'bytes');
+                        
+                        invoice.pdfGeneratedAt = new Date();
+                        invoice.pdfSize = pdfBuffer.length;
+                        await invoice.save();
+                    } catch (pdfErr) {
+                        console.error('   ❌ Background PDF error:', pdfErr.message);
+                    }
+                }
+
+                // ----- Attachments -----
+                let bgAttachments = [];
+                if (pdfBuffer && invoice) {
+                    const invoiceName = invoice.invoiceNumber
+                        ? `invoice-${invoice.invoiceNumber}.pdf`
+                        : `invoice-${invoice._id || 'attachment'}.pdf`;
+                    bgAttachments = [{
+                        filename: invoiceName,
+                        content: Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer),
+                        contentType: 'application/pdf'
+                    }];
+                    console.log('   📎 Attachment prepared:', invoiceName);
+                }
+
+                // ----- Customer email -----
+                const { allRecipients: bgCustomerRecipients } = getBookingPartyRecipients(booking, req.user?.email);
+                if (bgCustomerRecipients.length > 0) {
+                    try {
+                        await sendTemplateEmailPerRecipient({
+                            recipients: bgCustomerRecipients,
+                            subject: '🎉 Booking Confirmed! - Samudera Traffic Co., Ltd.',
+                            template: 'booking-confirmed-customer',
+                            data: {
+                                customerName: booking.sender?.name || 'Customer',
+                                bookingNumber: booking.bookingNumber,
+                                trackingNumber: trackingNumber,
+                                quotedAmount: booking.quotedPrice?.amount || 0,
+                                currency: booking.quotedPrice?.currency || 'USD',
+                                invoiceNumber: invoice?.invoiceNumber || 'N/A',
+                                origin: booking.shipmentDetails?.origin || 'N/A',
+                                destination: booking.shipmentDetails?.destination || 'N/A',
+                                estimatedDelivery: booking.dates?.estimatedArrival
+                                    ? new Date(booking.dates.estimatedArrival).toLocaleDateString()
+                                    : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString()
+                            },
+                            attachments: bgAttachments
+                        });
+                        console.log('   ✅ Background: customer email sent');
+                    } catch (e) { console.error('   ❌ Background customer email:', e.message); }
+                }
+
+                // ----- Receiver email -----
+                if (booking.receiver?.email) {
+                    try {
+                        await sendEmail({
+                            to: booking.receiver.email,
+                            subject: '📦 Your Shipment is Confirmed - Samudera Traffic Co., Ltd.',
+                            template: 'receiver-shipment-confirmed',
+                            data: {
+                                receiverName: booking.receiver.name || 'Valued Customer',
+                                receiverCompany: booking.receiver.companyName || '',
+                                senderName: booking.sender?.name || 'Our Customer',
+                                senderCompany: booking.sender?.companyName || '',
+                                senderCountry: booking.sender?.address?.country || 'Unknown',
+                                bookingNumber: booking.bookingNumber,
+                                trackingNumber: trackingNumber,
+                                origin: booking.shipmentDetails?.origin || 'Origin',
+                                destination: booking.shipmentDetails?.destination || 'Destination',
+                                totalPackages: booking.shipmentDetails?.totalPackages || 0,
+                                totalWeight: booking.shipmentDetails?.totalWeight || 0,
+                                totalVolume: booking.shipmentDetails?.totalVolume || 0,
+                                estimatedDelivery: booking.dates?.estimatedArrival
+                                    ? new Date(booking.dates.estimatedArrival).toLocaleDateString('en-US', {
+                                        year: 'numeric', month: 'long', day: 'numeric'
+                                    })
+                                    : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', {
+                                        year: 'numeric', month: 'long', day: 'numeric'
+                                    })
+                            },
+                            attachments: bgAttachments
+                        });
+                        console.log('   ✅ Background: receiver email sent');
+                    } catch (e) { console.error('   ❌ Background receiver email:', e.message); }
+                }
+
+                // ----- Admin email -----
+                try {
+                    const bgAdminRecipients = await getAdminNotificationRecipients();
+                    if (bgAdminRecipients.length > 0) {
+                        await sendTemplateEmailPerRecipient({
+                            recipients: bgAdminRecipients,
+                            subject: '✅ Booking Confirmed - Action Required',
+                            template: 'booking-confirmed-admin',
+                            data: {
+                                bookingNumber: booking.bookingNumber,
+                                customerName: booking.sender?.name || 'Customer',
+                                trackingNumber: trackingNumber,
+                                origin: booking.shipmentDetails?.origin || 'N/A',
+                                destination: booking.shipmentDetails?.destination || 'N/A',
+                                invoiceNumber: invoice?.invoiceNumber || 'N/A',
+                                totalAmount: invoice?.totalAmount || 0,
+                                currency: invoice?.currency || 'USD'
+                            },
+                            attachments: bgAttachments
+                        });
+                        console.log('   ✅ Background: admin email sent');
+                    }
+                } catch (e) { console.error('   ❌ Background admin email:', e.message); }
+
+                console.log('✅ Background email work complete');
+            } catch (bgError) {
+                // DO NOT call res here — response already sent!
+                console.error('❌ Background job error (response already sent):', bgError);
+            }
+        })();
+
+        return;
     } catch (error) {
         console.error('❌ FATAL ERROR:', error);
         console.error('Error stack:', error.stack);
-        
-        res.status(500).json({ 
-            success: false, 
-            error: error.message 
+
+        if (res.headersSent) {
+            console.error('Response already sent — cannot send 500 now');
+            return;
+        }
+
+        res.status(500).json({
+            success: false,
+            error: error.message
         });
     }
 };

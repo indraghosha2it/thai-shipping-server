@@ -140,7 +140,7 @@ emailVerified: {
     // Business Information (Customer only)
     businessType: {
         type: String,
-        enum: ['Manufacturer', 'Trader', 'Wholesaler', 'Retailer', 'Importer', 'Exporter', 'Other'],
+        enum: ['Manufacturer', 'Trader', 'Wholesaler', 'Distributor', 'Retailer', 'Importer', 'Exporter', 'Other', 'E-commerce'],
         default: 'Trader'
     },
     industry: {

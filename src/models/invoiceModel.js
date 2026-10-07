@@ -1,4 +1,4 @@
-// models/invoiceModel.js - সম্পূর্ণ আপডেটেড ভার্সন (সব সমস্যা সমাধান সহ)
+// models/invoiceModel.js -
 
 const mongoose = require('mongoose');
 

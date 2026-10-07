@@ -95,7 +95,8 @@ footerSettingsSchema.statics.getSettings = async function () {
       informationLinks: [
         { label: 'Contact Us', href: '/contact', order: 1 },
         { label: 'About Us', href: '/about', order: 2 },
-        { label: 'Track Shipment', href: '/track-shipment', order: 3 },
+        { label: 'Track Shipment', href: '/tracking-number', order: 3 },
+        { label: 'Privacy Policy', href: '/privacy-policy', order: 4 },
       ],
     });
   }
